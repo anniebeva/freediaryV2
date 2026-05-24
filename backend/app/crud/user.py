@@ -1,70 +1,54 @@
 from typing import List, Optional
+from sqlalchemy.orm import Session
 
-import app.models.memory_storage as storage
 from app.core.security import get_password_hash
-from app.models.memory_storage import User
+from app.models.models import User
 from app.schemas.user import UserCreate
 
 
-def get_users() -> List[User]:
-    return list(storage.users_db.values())
+def get_users(db: Session) -> List[User]:
+    """Получить всех пользователей"""
+    return db.query(User).all()
 
 
-def get_user_by_id(user_id: int) -> Optional[User]:
-    return storage.users_db.get(user_id)
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    """Получить пользователя по ID"""
+    return db.query(User).filter(User.id == user_id).first()
 
 
-def get_user_by_email(email: str) -> Optional[User]:
-    for user in storage.users_db.values():
-        if user.email == email:
-            return user
-    return None
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
+    """Получить пользователя по email"""
+    return db.query(User).filter(User.email == email).first()
 
 
-def get_user_by_username(username: str) -> Optional[User]:
-    for user in storage.users_db.values():
-        if user.username == username:
-            return user
-    return None
+def get_user_by_username(db: Session, username: str) -> Optional[User]:
+    """Получить пользователя по username"""
+    return db.query(User).filter(User.username == username).first()
 
 
-def create_user(user_data: UserCreate) -> User:
-    storage.user_counter += 1
-
-    user = User(
+def create_user(db: Session, user_data: UserCreate) -> User:
+    """Создать нового пользователя"""
+    hashed_password = get_password_hash(user_data.password)
+    
+    db_user = User(
         username=user_data.username,
         email=user_data.email,
-        password=get_password_hash(user_data.password),
+        password=hashed_password
     )
-    user.id = storage.user_counter
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user
 
-    storage.users_db[user.id] = user
 
-    return user
-
-
-def delete_user(user_id: int) -> bool:
-    if user_id not in storage.users_db:
+def delete_user(db: Session, user_id: int) -> bool:
+    """Удалить пользователя по ID"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
         return False
-
-    del storage.users_db[user_id]
-
-    user_trainings = [
-        training_id
-        for training_id, training in storage.trainings_db.items()
-        if training.user_id == user_id
-    ]
-
-    for training_id in user_trainings:
-        training_exercises = [
-            exercise_id
-            for exercise_id, exercise in storage.exercises_db.items()
-            if exercise.training_id == training_id
-        ]
-
-        for exercise_id in training_exercises:
-            del storage.exercises_db[exercise_id]
-
-        del storage.trainings_db[training_id]
-
+    
+    db.delete(user)
+    db.commit()
     return True
