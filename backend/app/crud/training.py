@@ -64,20 +64,61 @@ def create_training(training_data: TrainingCreate, user_id: int) -> Optional[Tra
     return training
 
 
+from datetime import datetime
+
 def update_training(training_id: int, training_data: TrainingUpdate) -> Optional[Training]:
     training = get_training_by_id(training_id)
-
     if training is None:
         return None
+    
+    if training_data.type is not None:
+        training.type = training_data.type
+    if training_data.date is not None:
+        # Преобразуем строку в date, если нужно
+        if isinstance(training_data.date, str):
+            training.date = datetime.strptime(training_data.date, "%Y-%m-%d").date()
+        else:
+            training.date = training_data.date
+    # Если дата не передана — оставляем старую (она уже есть в training)
+    
+    if training_data.difficulty is not None:
+        training.difficulty = training_data.difficulty
+    if training_data.notes is not None:
+        training.notes = training_data.notes
+    if training_data.poolTraining is not None:
+        training.poolTraining = training_data.poolTraining
+    if training_data.depthTraining is not None:
+        training.depthTraining = training_data.depthTraining
+    if training_data.gymTraining is not None:
+        training.gymTraining = training_data.gymTraining
+    
+    return training
 
-    training.type = training_data.type
-    training.date = training_data.date
-    training.difficulty = training_data.difficulty
-    training.notes = training_data.notes
-    training.poolTraining = training_data.poolTraining
-    training.depthTraining = training_data.depthTraining
-    training.gymTraining = training_data.gymTraining
-
+def update_session_training(session_id: str, training_id: int, training_data: TrainingUpdate) -> Optional[Training]:
+    session = get_session(session_id)
+    if session is None or training_id not in session.trainings:
+        return None
+    
+    training = session.trainings[training_id]
+    
+    if training_data.type is not None:
+        training.type = training_data.type
+    if training_data.date is not None:
+        if isinstance(training_data.date, str):
+            training.date = datetime.strptime(training_data.date, "%Y-%m-%d").date()
+        else:
+            training.date = training_data.date
+    if training_data.difficulty is not None:
+        training.difficulty = training_data.difficulty
+    if training_data.notes is not None:
+        training.notes = training_data.notes
+    if training_data.poolTraining is not None:
+        training.poolTraining = training_data.poolTraining
+    if training_data.depthTraining is not None:
+        training.depthTraining = training_data.depthTraining
+    if training_data.gymTraining is not None:
+        training.gymTraining = training_data.gymTraining
+    
     return training
 
 

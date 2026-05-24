@@ -7,6 +7,7 @@ const TrainingsPage: React.FunctionComponent = () => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrainings();
@@ -33,12 +34,21 @@ const TrainingsPage: React.FunctionComponent = () => {
   };
 
   const handleDeleteTraining = async (id: string) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту тренировку?')) {
+      return;
+    }
+    
     try {
       await trainingAPI.delete(id);
       setTrainings(trainings.filter(training => training.id !== id));
+      setSuccessMessage('Тренировка успешно удалена');
+      // Скрываем сообщение через 3 секунды
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       setError('Не удалось удалить тренировку. Попробуйте позже.');
       console.error('Error deleting training:', err);
+      // Скрываем сообщение об ошибке через 3 секунды
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -54,13 +64,14 @@ const TrainingsPage: React.FunctionComponent = () => {
         </Link>
       </div>
 
-      {loading && (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-water-medium"></div>
-          <p className="mt-2 text-gray-600">Загрузка тренировок...</p>
+      {/* Сообщение об успехе */}
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          {successMessage}
         </div>
       )}
 
+      {/* Сообщение об ошибке */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p>{error}</p>
@@ -70,6 +81,13 @@ const TrainingsPage: React.FunctionComponent = () => {
           >
             Попробовать снова
           </button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-water-medium"></div>
+          <p className="mt-2 text-gray-600">Загрузка тренировок...</p>
         </div>
       )}
 

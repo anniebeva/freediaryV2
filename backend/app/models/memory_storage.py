@@ -24,17 +24,10 @@ class Training:
         self.gymTraining = gymTraining
 
 class Exercise:
-    def __init__(self, training_id: int, name: str, 
-                 reps: Optional[int] = None, 
-                 sets: Optional[int] = None, 
-                 weight: Optional[float] = None,
-                 notes: Optional[str] = None):
-        self.id: int = 0  # Будем устанавливать при добавлении
+    def __init__(self, training_id: int, name: str, notes: Optional[str] = None):
+        self.id: int = 0
         self.training_id = training_id
         self.name = name
-        self.reps = reps
-        self.sets = sets
-        self.weight = weight
         self.notes = notes
 
 class Session:

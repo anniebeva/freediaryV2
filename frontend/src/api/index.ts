@@ -1,4 +1,3 @@
-// API сервис для работы с бэкендом
 const API_BASE_URL = 'http://localhost:8000';
 
 // Получение токена из localStorage
@@ -38,6 +37,11 @@ async function fetchAPI<T>(
 
   try {
     const response = await fetch(url, { ...defaultOptions, ...options });
+    
+    // 👇 ДОБАВЬ ЭТУ ПРОВЕРКУ (ОБРАБОТКА ПУСТОГО ОТВЕТА 204)
+    if (response.status === 204) {
+      return {} as T;
+    }
     
     if (!response.ok) {
       // Пытаемся получить детальную информацию об ошибке

@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 
@@ -75,42 +76,25 @@ def get_my_trainings(
         return get_trainings_by_user_id(current_user.id)
 
 
-@router.get("/{training_id}", response_model=TrainingWithExercises)
+from app.crud.exercise import get_exercises_by_training_id
+
+from app.schemas.training import TrainingWithExercises  
+
+@router.get("/{training_id}", response_model=TrainingWithExercises)  # 👈 поменяй response_model
 def get_my_training(
     training_id: int,
     current_user: User = Depends(get_current_user),
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
-    # Check session storage first for guest users
-    if current_user.id == 0 and x_session_id:
-        session_id = get_or_create_session(x_session_id)
-        training = get_session_training_by_id(session_id, training_id)
-        if training:
-            return {
-                "id": training.id,
-                "user_id": training.user_id,
-                "type": training.type,
-                "date": training.date,
-                "difficulty": training.difficulty,
-                "notes": training.notes,
-                "poolTraining": training.poolTraining,
-                "depthTraining": training.depthTraining,
-                "gymTraining": training.gymTraining,
-                "exercises": [],  # Session trainings don't have exercises yet
-            }
+    training = get_training_by_id(training_id, x_session_id)
     
-    # Check regular database
-    training = get_training_by_id(training_id)
-
     if training is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Training not found",
-        )
-
+        raise HTTPException(status_code=404, detail="Training not found")
+    
+    exercises = get_exercises_by_training_id(training_id, x_session_id)
+    
     return {
         "id": training.id,
-        "user_id": training.user_id,
         "type": training.type,
         "date": training.date,
         "difficulty": training.difficulty,
@@ -118,7 +102,8 @@ def get_my_training(
         "poolTraining": training.poolTraining,
         "depthTraining": training.depthTraining,
         "gymTraining": training.gymTraining,
-        "exercises": get_exercises_by_training_id(training_id),
+        "user_id": training.user_id,
+        "exercises": exercises
     }
 
 
@@ -150,7 +135,7 @@ def update_my_training(
             detail="Training not found",
         )
     
-    # Check if user is owner (guest users can only update their own trainings)
+    # Check if user is owner
     if training.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -160,7 +145,6 @@ def update_my_training(
     updated_training = update_training(training_id=training_id, training_data=training_data)
 
     return updated_training
-
 
 @router.delete("/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_my_training(

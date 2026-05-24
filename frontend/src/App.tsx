@@ -22,7 +22,7 @@ const App: React.FunctionComponent = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/trainings" element={<TrainingsPage />} />
             <Route path="/add-training" element={<AddTrainingPage />} />
-            <Route path="/edit-training/:id" element={<EditTrainingPage />} />
+            <Route path="/trainings/:id/edit" element={<EditTrainingPage />} />
             <Route path="/training/:id" element={<TrainingDetailPage />} />
             <Route path="/stats" element={<StatsPage />} />
             <Route path="/profile" element={<ProfilePage />} />

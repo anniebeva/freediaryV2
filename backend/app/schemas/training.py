@@ -25,7 +25,13 @@ class TrainingCreate(TrainingBase):
     pass
 
 class TrainingUpdate(TrainingBase):
-    pass
+    type: Optional[TrainingType] = None
+    date: Optional[str] = None
+    difficulty: Optional[int] = Field(None, ge=1, le=5)
+    notes: Optional[str] = Field(None, max_length=500)
+    poolTraining: Optional[dict] = None
+    depthTraining: Optional[dict] = None
+    gymTraining: Optional[dict] = None
 
 class TrainingResponse(TrainingBase):
     id: int

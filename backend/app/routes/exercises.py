@@ -106,21 +106,25 @@ def update_my_exercise(
     exercise_id: int,
     exercise_data: ExerciseUpdate,
     current_user: User = Depends(get_current_user),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
-    if get_exercise_by_id(exercise_id) is None:
+    exercise = get_exercise_by_id(exercise_id)
+    
+    if exercise is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise not found",
         )
-
-    if not is_exercise_training_owner(exercise_id=exercise_id, user_id=current_user.id):
+    
+    # Проверяем владельца
+    if not is_exercise_training_owner(exercise_id=exercise_id, user_id=current_user.id, session_id=x_session_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can update only exercises from your own trainings",
         )
-
-    updated_exercise = update_exercise(exercise_id=exercise_id, exercise_data=exercise_data)
-
+    
+    updated_exercise = update_exercise(exercise_id=exercise_id, exercise_data=exercise_data, session_id=x_session_id)
+    
     return updated_exercise
 
 

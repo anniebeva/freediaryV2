@@ -6,26 +6,10 @@ export enum TrainingType {
   Other = 'Другое'
 }
 
-export interface PoolExercise {
+export interface Exercise {
   id: string;
   name: string;
-  notes?: string;
-}
-
-export interface DepthExercise {
-  id: string;
-  name: string;
-  depth?: number;
-  notes?: string;
-}
-
-export interface GymExercise {
-  id: string;
-  name: string;
-  sets: number;
-  reps: number;
-  interval?: number;
-  notes?: string;
+  notes: string;
 }
 
 export interface Training {
@@ -54,5 +38,5 @@ export interface Training {
     calories?: number;
   };
   
-  exercises: PoolExercise[] | DepthExercise[] | GymExercise[];
+  exercises: Exercise
 }
