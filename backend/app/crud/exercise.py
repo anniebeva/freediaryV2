@@ -1,110 +1,132 @@
-from typing import List, Optional
+from typing import List, Optional, Union
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
-import app.models.memory_storage as storage
-from app.models.memory_storage import Exercise
+from app.models.models import Exercise, SessionExercise, Training, SessionTraining
 from app.schemas.exercise import ExerciseCreate, ExerciseUpdate
-from app.crud.training import get_training_by_id
 
 
-def get_exercises() -> List[Exercise]:
-    return list(storage.exercises_db.values())
-
-
-def get_exercise_by_id(exercise_id: int) -> Optional[Exercise]:
-    return storage.exercises_db.get(exercise_id)
-
-
-def get_exercises_by_training_id(training_id: int, session_id: Optional[str] = None) -> List[Exercise]:
-    exercises = []
-    
-    # 1. Ищем в общем хранилище
-    for exercise in storage.exercises_db.values():
-        if exercise.training_id == training_id:
-            exercises.append(exercise)
-    
-    # 2. Если есть session_id, ищем в сессии
-    if session_id:
-        session = storage.sessions_db.get(session_id)
-        if session:
-            for exercise in session.exercises.values():
-                if exercise.training_id == training_id:
-                    exercises.append(exercise)
-    
-    return exercises
-
-def create_exercise(exercise_data: ExerciseCreate, session_id: Optional[str] = None) -> Optional[Exercise]:
-    # Проверяем существование тренировки
-    training = get_training_by_id(exercise_data.training_id, session_id)
-    if training is None:
-        return None
-
-    # Создаём упражнение
-    exercise = Exercise(
-        training_id=exercise_data.training_id,
-        name=exercise_data.name,
-        notes=exercise_data.notes
-    )
-    
-    # Сохраняем в зависимости от типа пользователя
-    if session_id and training.user_id == 0:
-        session = storage.sessions_db.get(session_id)
-        if session is None:
-            return None
-        session.exercise_counter += 1
-        exercise.id = session.exercise_counter
-        session.exercises[exercise.id] = exercise
+def get_exercises_by_training_id(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None) -> List[Union[Exercise, SessionExercise]]:
+    """Получить упражнения для тренировки в зависимости от типа пользователя"""
+    if user_id > 0:
+        # Зарегистрированный пользователь - получаем упражнения из обычной тренировки
+        return db.query(Exercise).filter(Exercise.training_id == training_id).all()
+    elif user_id == 0 and session_id:
+        # Гостевой пользователь - получаем упражнения из сессионной тренировки
+        return db.query(SessionExercise).filter(
+            SessionExercise.training_id == training_id,
+            SessionExercise.session_id == session_id
+        ).all()
     else:
-        storage.exercise_counter += 1
-        exercise.id = storage.exercise_counter
-        storage.exercises_db[exercise.id] = exercise
+        return []
+
+
+def get_exercise_by_id(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+    """Получить упражнение по ID в зависимости от типа пользователя"""
+    if user_id > 0:
+        # Зарегистрированный пользователь - ищем в обычных упражнениях
+        return db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    elif user_id == 0 and session_id:
+        # Гостевой пользователь - ищем в сессионных упражнениях
+        return db.query(SessionExercise).filter(
+            SessionExercise.id == exercise_id,
+            SessionExercise.session_id == session_id
+        ).first()
+    return None
+
+
+def create_exercise(db: Session, exercise_data: ExerciseCreate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+    """Создать новое упражнение"""
+    # Проверяем существование тренировки
+    if user_id > 0:
+        # Для зарегистрированного пользователя ищем обычную тренировку
+        training = db.query(Training).filter(
+            Training.id == exercise_data.training_id,
+            Training.user_id == user_id
+        ).first()
+    elif user_id == 0 and session_id:
+        # Для гостевого пользователя ищем сессионную тренировку
+        training = db.query(SessionTraining).filter(
+            SessionTraining.id == exercise_data.training_id,
+            SessionTraining.session_id == session_id
+        ).first()
+    else:
+        training = None
+    
+    if not training:
+        return None
+    
+    # Создаем упражнение в зависимости от типа пользователя
+    if user_id > 0:
+        db_exercise = Exercise(
+            training_id=exercise_data.training_id,
+            name=exercise_data.name,
+            notes=exercise_data.notes
+        )
+    elif user_id == 0 and session_id:
+        db_exercise = SessionExercise(
+            session_id=session_id,
+            training_id=exercise_data.training_id,
+            name=exercise_data.name,
+            notes=exercise_data.notes
+        )
+    else:
+        return None
+    
+    db.add(db_exercise)
+    db.commit()
+    db.refresh(db_exercise)
+    
+    return db_exercise
+
+
+def update_exercise(db: Session, exercise_id: int, exercise_data: ExerciseUpdate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+    """Обновить упражнение"""
+    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
+    if not exercise:
+        return None
+    
+    # Преобразуем Pydantic модель в словарь (исключая None)
+    update_data = exercise_data.model_dump(exclude_unset=True)
+    
+    # Обновляем атрибуты
+    for key, value in update_data.items():
+        if hasattr(exercise, key):
+            setattr(exercise, key, value)
+    
+    db.commit()
+    db.refresh(exercise)
     
     return exercise
 
-def delete_exercise(exercise_id: int) -> bool:
-    if exercise_id not in storage.exercises_db:
+
+def delete_exercise(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+    """Удалить упражнение"""
+    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
+    if not exercise:
         return False
-
-    del storage.exercises_db[exercise_id]
-
+    
+    db.delete(exercise)
+    db.commit()
     return True
 
-def update_exercise(exercise_id: int, exercise_data: ExerciseUpdate, session_id: Optional[str] = None) -> Optional[Exercise]:
-    # Ищем упражнение
-    exercise = storage.exercises_db.get(exercise_id)
-    
-    # Если не нашли в общем хранилище, ищем в сессиях
-    if exercise is None and session_id:
-        session = storage.sessions_db.get(session_id)
-        if session and exercise_id in session.exercises:
-            exercise = session.exercises[exercise_id]
-    
-    if exercise is None:
-        return None
-    
-    # Обновляем только name и notes
-    if exercise_data.name is not None:
-        exercise.name = exercise_data.name
-    if exercise_data.notes is not None:
-        exercise.notes = exercise_data.notes
-    
-    return exercise
 
-
-def is_exercise_training_owner(exercise_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
-    exercise = get_exercise_by_id(exercise_id)
-    
-    if exercise is None:
+def is_exercise_training_owner(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+    """Проверить, является ли пользователь владельцем тренировки, к которой относится упражнение"""
+    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
+    if not exercise:
         return False
     
-    # Ищем тренировку (сначала в trainings_db, потом в сессии)
-    training = storage.trainings_db.get(exercise.training_id)
-    
-    if training is None and session_id:
-        session = storage.sessions_db.get(session_id)
-        if session and exercise.training_id in session.trainings:
-            training = session.trainings[exercise.training_id]
-    
-    if training is None:
+    if user_id > 0:
+        training = db.query(Training).filter(Training.id == exercise.training_id).first()
+        if not training:
+            return False
+        return training.user_id == user_id  # type: ignore[return-value]
+    elif user_id == 0 and session_id:
+        training = db.query(SessionTraining).filter(
+            SessionTraining.id == exercise.training_id,
+            SessionTraining.session_id == session_id
+        ).first()
+        return training is not None
+    else:
         return False
-    
-    return training.user_id == user_id

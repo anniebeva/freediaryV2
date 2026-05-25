@@ -230,3 +230,4 @@ cython_debug/
 # Frontend specific (from frontend/.gitignore)
 /.pnp
 .pnp.js
+backend/freediary.db

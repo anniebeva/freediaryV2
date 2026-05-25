@@ -82,9 +82,10 @@ const TrainingDetailPage: React.FunctionComponent = () => {
     );
   }
 
-  // Для отладки — посмотрим, что пришло
-  console.log('Тип тренировки (type):', training.type, typeof training.type);
-
+ console.log('🔍 depthTraining:', training.depthTraining);
+console.log('🔍 poolTraining:', training.poolTraining);
+console.log('🔍 gymTraining:', training.gymTraining);
+console.log('🔍 Ключи depthTraining:', Object.keys(training.depthTraining || {}));
   return (
     <div className="container mx-auto p-6">
       <div className="bg-white shadow-md rounded-lg p-6">

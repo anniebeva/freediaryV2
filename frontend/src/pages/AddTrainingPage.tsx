@@ -103,6 +103,7 @@ const AddTrainingPage: React.FunctionComponent = () => {
       } else if (trainingType === TrainingType.Gym) {
         trainingData.gymTraining = gymTraining;
       }
+      console.log('📤 trainingData перед отправкой:', trainingData);
 
       const createdTraining = await trainingAPI.create(trainingData);
       
@@ -134,6 +135,12 @@ const AddTrainingPage: React.FunctionComponent = () => {
       setLoading(false);
     }
   };
+  console.log('📤 ОТПРАВЛЯЕМЫЕ ДАННЫЕ для Depth:', {
+  type: mapTrainingTypeToAPI(trainingType),
+  date: date,
+  difficulty: difficulty,
+  depthTraining: depthTraining
+});
 
   return (
     <div className="container mx-auto p-6">

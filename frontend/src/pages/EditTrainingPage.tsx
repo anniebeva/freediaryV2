@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { TrainingType } from '../types/Training';
-import { trainingAPI } from '../api';
+import { trainingAPI, exerciseAPI } from '../api';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Exercise {
@@ -69,9 +69,31 @@ const EditTrainingPage: React.FunctionComponent = () => {
         setNotes(data.notes || '');
         setDate(data.date);
         
-        if (data.poolTraining) setPoolTraining(data.poolTraining);
-        if (data.depthTraining) setDepthTraining(data.depthTraining);
-        if (data.gymTraining) setGymTraining(data.gymTraining);
+        // Загружаем специфические данные с проверкой на null/undefined
+        if (data.poolTraining && Object.keys(data.poolTraining).length > 0) {
+          setPoolTraining(data.poolTraining);
+        } else {
+          setPoolTraining({ poolSize: 0 });
+        }
+        
+        if (data.depthTraining && Object.keys(data.depthTraining).length > 0) {
+          setDepthTraining(data.depthTraining);
+        } else {
+          setDepthTraining({
+            wetsuit: 0,
+            temperature: 0,
+            location: '',
+          });
+        }
+        
+        if (data.gymTraining && Object.keys(data.gymTraining).length > 0) {
+          setGymTraining(data.gymTraining);
+        } else {
+          setGymTraining({
+            avgHeartRate: 0,
+            calories: 0,
+          });
+        }
         
         // Загружаем упражнения из бэкенда
         if (data.exercises && Array.isArray(data.exercises)) {
@@ -151,11 +173,39 @@ const EditTrainingPage: React.FunctionComponent = () => {
         trainingData.gymTraining = gymTraining;
       }
 
-      // Обновляем тренировку
+      // 1. Обновляем тренировку
       await trainingAPI.update(id!, trainingData);
       
-      // TODO: Здесь нужно обновить упражнения (создать новые, удалить старые)
-      // Пока просто перенаправляем на страницу тренировки
+      // 2. Получаем текущие упражнения с бэка
+      const currentExercises = await exerciseAPI.getByTraining(id!);
+      
+      // Создаём Map для быстрого поиска
+      const currentExercisesMap = new Map(currentExercises.map((ex: any) => [ex.id.toString(), ex]));
+      const newExercisesMap = new Map(exercises.map(ex => [ex.id, ex]));
+      
+      // Удаляем упражнения, которых нет в новой версии
+      for (const exId of Array.from(currentExercisesMap.keys())) {
+        if (!newExercisesMap.has(exId)) {
+          await exerciseAPI.delete(exId);
+        }
+      }
+      
+      // Обновляем или создаём упражнения
+      for (const exercise of exercises) {
+        const exerciseData = {
+          name: exercise.name,
+          notes: exercise.notes || undefined,
+          training_id: parseInt(id!),
+        };
+        
+        if (currentExercisesMap.has(exercise.id) && !exercise.id.includes('uuid')) {
+          // Обновляем существующее упражнение (если id не начинается с uuid - значит из бэка)
+          await exerciseAPI.update(exercise.id, exerciseData);
+        } else if (exercise.name.trim()) {
+          // Создаём новое упражнение (если есть название)
+          await exerciseAPI.create(exerciseData);
+        }
+      }
       
       navigate(`/training/${id}`);
     } catch (err: any) {

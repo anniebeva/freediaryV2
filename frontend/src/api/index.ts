@@ -101,7 +101,7 @@ export const trainingAPI = {
 // Упражнения
 export const exerciseAPI = {
   // Получить упражнения для тренировки
-  getByTraining: (trainingId: string) => fetchAPI<any[]>(`/exercises/?training_id=${trainingId}`),
+  getByTraining: (trainingId: string) => fetchAPI<any[]>(`/exercises/training/${trainingId}`),
   
   // Создать упражнение
   create: (data: any) => fetchAPI<any>('/exercises/', {
