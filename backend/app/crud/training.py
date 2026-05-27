@@ -16,9 +16,12 @@ def parse_date(date_input: Union[str, date]) -> date:
     return date_input
 
 
-def get_trainings(db: Session, user_id: int, session_id: Optional[str] = None) -> List[Union[Training, SessionTraining]]:
+def get_trainings(db: Session, user_id: int, session_id: Optional[str] = None, user_role: Optional[str] = None) -> List[Union[Training, SessionTraining]]:
     """Получить тренировки в зависимости от типа пользователя"""
-    if user_id > 0:
+    # Администратор получает все тренировки
+    if user_role == "admin" and user_id > 0:
+        return db.query(Training).order_by(Training.date.desc()).all()
+    elif user_id > 0:
         return db.query(Training).filter(Training.user_id == user_id).order_by(Training.date.desc()).all()
     elif user_id == 0 and session_id:
         return db.query(SessionTraining).filter(SessionTraining.session_id == session_id).order_by(SessionTraining.date.desc()).all()
@@ -26,9 +29,12 @@ def get_trainings(db: Session, user_id: int, session_id: Optional[str] = None) -
         return []
 
 
-def get_training_by_id(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Training, SessionTraining]]:
+def get_training_by_id(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None, user_role: Optional[str] = None) -> Optional[Union[Training, SessionTraining]]:
     """Получить тренировку по ID в зависимости от типа пользователя"""
-    if user_id > 0:
+    # Администратор получает любую тренировку
+    if user_role == "admin" and user_id > 0:
+        return db.query(Training).filter(Training.id == training_id).first()
+    elif user_id > 0:
         return db.query(Training).filter(
             Training.id == training_id,
             Training.user_id == user_id
@@ -72,6 +78,14 @@ def get_or_create_session(db: Session, session_id: str) -> SessionTracking:
 
 def create_training(db: Session, training_data: TrainingCreate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Training, SessionTraining]]:
     """Создать новую тренировку"""
+    print("=" * 50)
+    print(f"📦 create_training вызван")
+    print(f"   user_id: {user_id}")
+    print(f"   session_id: {session_id}")
+    print(f"   training_data: {training_data}")
+    print(f"   poolTraining: {training_data.poolTraining}")
+    print(f"   depthTraining: {training_data.depthTraining}")
+    print(f"   gymTraining: {training_data.gymTraining}")
     if user_id != 0:
         from app.crud.user import get_user_by_id
         user = get_user_by_id(db, user_id)
@@ -117,9 +131,9 @@ def create_training(db: Session, training_data: TrainingCreate, user_id: int, se
     
     return db_training
 
-def update_training(db: Session, training_id: int, training_data: TrainingUpdate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Training, SessionTraining]]:
+def update_training(db: Session, training_id: int, training_data: TrainingUpdate, user_id: int, session_id: Optional[str] = None, user_role: Optional[str] = None) -> Optional[Union[Training, SessionTraining]]:
     """Обновить тренировку"""
-    training = get_training_by_id(db, training_id, user_id, session_id)
+    training = get_training_by_id(db, training_id, user_id, session_id, user_role)
     if not training:
         return None
     
@@ -153,9 +167,9 @@ def update_training(db: Session, training_id: int, training_data: TrainingUpdate
     
     return training
 
-def delete_training(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+def delete_training(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None, user_role: Optional[str] = None) -> bool:
     """Удалить тренировку"""
-    training = get_training_by_id(db, training_id, user_id, session_id)
+    training = get_training_by_id(db, training_id, user_id, session_id, user_role)
     if not training:
         return False
     
@@ -164,8 +178,15 @@ def delete_training(db: Session, training_id: int, user_id: int, session_id: Opt
     return True
 
 
-def is_training_owner(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+def is_training_owner(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None, user_role: Optional[str] = None) -> bool:
     """Проверить, является ли пользователь владельцем тренировки"""
+    # Администратор имеет доступ ко всем тренировкам
+    if user_role == "admin":
+        # Для администратора проверяем существование тренировки
+        training = db.query(Training).filter(Training.id == training_id).first()
+        return training is not None
+    
+    # Обычный пользователь - стандартная проверка
     training = get_training_by_id(db, training_id, user_id, session_id)
     return training is not None
 

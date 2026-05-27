@@ -18,6 +18,15 @@ from app.models.models import User
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
+
+def get_user_role(current_user: User) -> str:
+    """Получить роль пользователя в виде строки"""
+    if not current_user:
+        return "guest"
+    user_role = str(current_user.role) if hasattr(current_user, 'role') else "user"
+    return user_role
+
+
 def format_exercise_response(exercise):
     """Преобразует объект Exercise или SessionExercise в словарь для ответа"""
     return {
@@ -27,6 +36,7 @@ def format_exercise_response(exercise):
         "training_id": exercise.training_id,
     }
 
+
 @router.post("/", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
 def create_training_exercise(
     exercise_data: ExerciseCreate,
@@ -35,14 +45,15 @@ def create_training_exercise(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
     user_id = getattr(current_user, 'id', 0) if current_user else 0
+    user_role = get_user_role(current_user)
     
-    if not is_training_owner(db, exercise_data.training_id, user_id, x_session_id):
+    if not is_training_owner(db, exercise_data.training_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can add exercises only to your own trainings",
         )
     
-    exercise = create_exercise(db, exercise_data, user_id, x_session_id)
+    exercise = create_exercise(db, exercise_data, user_id, x_session_id, user_role)
     
     if exercise is None:
         raise HTTPException(
@@ -61,8 +72,9 @@ def get_my_exercise(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
     user_id = getattr(current_user, 'id', 0) if current_user else 0
+    user_role = get_user_role(current_user)
     
-    exercise = get_exercise_by_id(db, exercise_id, user_id, x_session_id)
+    exercise = get_exercise_by_id(db, exercise_id, user_id, x_session_id, user_role)
     
     if exercise is None:
         raise HTTPException(
@@ -70,7 +82,7 @@ def get_my_exercise(
             detail="Exercise not found",
         )
     
-    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id):
+    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can access only exercises from your own trainings",
@@ -87,14 +99,15 @@ def get_training_exercises(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
     user_id = getattr(current_user, 'id', 0) if current_user else 0
+    user_role = get_user_role(current_user)
     
-    if not is_training_owner(db, training_id, user_id, x_session_id):
+    if not is_training_owner(db, training_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can view exercises only for your own trainings",
         )
     
-    exercises = get_exercises_by_training_id(db, training_id, user_id, x_session_id)
+    exercises = get_exercises_by_training_id(db, training_id, user_id, x_session_id, user_role)
     return [format_exercise_response(ex) for ex in exercises]
 
 
@@ -107,14 +120,15 @@ def update_my_exercise(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
     user_id = getattr(current_user, 'id', 0) if current_user else 0
+    user_role = get_user_role(current_user)
     
-    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id):
+    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can update only exercises from your own trainings",
         )
     
-    updated_exercise = update_exercise(db, exercise_id, exercise_data, user_id, x_session_id)
+    updated_exercise = update_exercise(db, exercise_id, exercise_data, user_id, x_session_id, user_role)
     
     if updated_exercise is None:
         raise HTTPException(
@@ -133,14 +147,15 @@ def delete_my_exercise(
     x_session_id: Optional[str] = Header(None, alias="X-Session-ID")
 ):
     user_id = getattr(current_user, 'id', 0) if current_user else 0
+    user_role = get_user_role(current_user)
     
-    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id):
+    if not is_exercise_training_owner(db, exercise_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can delete only exercises from your own trainings",
         )
     
-    if not delete_exercise(db, exercise_id, user_id, x_session_id):
+    if not delete_exercise(db, exercise_id, user_id, x_session_id, user_role):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise not found",

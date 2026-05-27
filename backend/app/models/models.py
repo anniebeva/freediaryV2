@@ -13,6 +13,11 @@ class TrainingType(str, enum.Enum):
     Other = "Other"
 
 
+class UserRole(str, enum.Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+
 class User(Base):
     __tablename__ = "users"
     
@@ -20,6 +25,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(100), unique=True, nullable=False, index=True)
     password = Column(String(200), nullable=False)
+    role = Column(String(10), default=UserRole.USER.value, nullable=False)
     
     trainings = relationship("Training", back_populates="user", cascade="all, delete-orphan")
 

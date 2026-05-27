@@ -1,18 +1,20 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { authAPI } from '../api/index';
 
 interface User {
-  id: string;
+  id: number;
   username: string;
   email: string;
+  role?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  getCurrentUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,45 +26,62 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Инициализация sessionId для гостевых пользователей
-  React.useEffect(() => {
-    const initializeSession = () => {
+  useEffect(() => {
+    const initializeAuth = async () => {
       const token = localStorage.getItem('token');
       
-      if (!token) {
+      if (token) {
+        try {
+          const userData = await authAPI.getMe();
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Token validation failed:', error);
+          localStorage.removeItem('token');
+          // Создаем sessionId для гостя
+          let sessionId = localStorage.getItem('sessionId');
+          if (!sessionId) {
+            sessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('sessionId', sessionId);
+          }
+        }
+      } else {
         // Если пользователь не авторизован, создаем или получаем sessionId
         let sessionId = localStorage.getItem('sessionId');
         if (!sessionId) {
-          // Генерируем простой sessionId
           sessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
           localStorage.setItem('sessionId', sessionId);
         }
-      } else {
-        // Если пользователь авторизован, удаляем sessionId
-        localStorage.removeItem('sessionId');
       }
+      setLoading(false);
     };
 
-    initializeSession();
+    initializeAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      const response = await authAPI.login({ username, password });
+      const response = await authAPI.login({ email, password });
       
-      // Предполагаем, что API возвращает данные пользователя
-      const userData: User = {
-        id: response.id || '1',
-        username: response.username || username,
-        email: response.email || `${username}@example.com`
-      };
+      // Бэкенд возвращает access_token
+      const token = response.access_token;
+      
+      if (!token) {
+        throw new Error('Token not received');
+      }
+      
+      // Сохраняем токен
+      localStorage.setItem('token', token);
+      
+      // Получаем данные пользователя
+      const userData = await authAPI.getMe();
       
       setUser(userData);
       setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', response.token || 'mock-token');
+      
       // Удаляем sessionId при успешной авторизации
       localStorage.removeItem('sessionId');
     } catch (error) {
@@ -73,20 +92,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      const response = await authAPI.register({ username, email, password });
-      
-      // Предполагаем, что API возвращает данные пользователя
-      const userData: User = {
-        id: response.id || '2',
-        username: response.username || username,
-        email: response.email || email
-      };
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', response.token || 'mock-token');
+      await authAPI.register({ username, email, password });
+      // После регистрации сразу входим
+      await login(email, password);
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -94,7 +102,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    // Вызываем API logout если есть токен
     const token = localStorage.getItem('token');
     if (token) {
       authAPI.logout().catch(console.error);
@@ -102,29 +109,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('user');
     localStorage.removeItem('token');
+    
+    // Создаем новую сессию для гостя
+    const sessionId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('sessionId', sessionId);
   };
 
-  // Проверяем localStorage при инициализации
-  React.useEffect(() => {
-    const storedAuth = localStorage.getItem('isAuthenticated');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedAuth === 'true' && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
+  const getCurrentUser = async (): Promise<User | null> => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return null;
       }
+      return await authAPI.getMe();
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      return null;
     }
-  }, []);
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">Загрузка...</div>
+    </div>;
+  }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, register, logout, getCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

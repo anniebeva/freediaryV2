@@ -1,33 +1,45 @@
 from typing import List, Optional, Union
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
-from app.models.models import Exercise, SessionExercise, Training, SessionTraining
+from app.models.models import Exercise, SessionExercise, Training
 from app.schemas.exercise import ExerciseCreate, ExerciseUpdate
 
 
-def get_exercises_by_training_id(db: Session, training_id: int, user_id: int, session_id: Optional[str] = None) -> List[Union[Exercise, SessionExercise]]:
-    """Получить упражнения для тренировки в зависимости от типа пользователя"""
-    if user_id > 0:
-        # Зарегистрированный пользователь - получаем упражнения из обычной тренировки
+def get_exercises_by_training_id(
+    db: Session, 
+    training_id: int, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> List[Union[Exercise, SessionExercise]]:
+    """Получить упражнения по ID тренировки в зависимости от типа пользователя"""
+    # Администратор получает упражнения из любой тренировки
+    if user_role == "admin" and user_id > 0:
+        return db.query(Exercise).filter(Exercise.training_id == training_id).all()
+    elif user_id > 0:
         return db.query(Exercise).filter(Exercise.training_id == training_id).all()
     elif user_id == 0 and session_id:
-        # Гостевой пользователь - получаем упражнения из сессионной тренировки
         return db.query(SessionExercise).filter(
             SessionExercise.training_id == training_id,
             SessionExercise.session_id == session_id
         ).all()
-    else:
-        return []
+    return []
 
 
-def get_exercise_by_id(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+def get_exercise_by_id(
+    db: Session, 
+    exercise_id: int, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> Optional[Union[Exercise, SessionExercise]]:
     """Получить упражнение по ID в зависимости от типа пользователя"""
-    if user_id > 0:
-        # Зарегистрированный пользователь - ищем в обычных упражнениях
+    # Администратор получает любое упражнение
+    if user_role == "admin" and user_id > 0:
+        return db.query(Exercise).filter(Exercise.id == exercise_id).first()
+    elif user_id > 0:
         return db.query(Exercise).filter(Exercise.id == exercise_id).first()
     elif user_id == 0 and session_id:
-        # Гостевой пользователь - ищем в сессионных упражнениях
         return db.query(SessionExercise).filter(
             SessionExercise.id == exercise_id,
             SessionExercise.session_id == session_id
@@ -35,29 +47,33 @@ def get_exercise_by_id(db: Session, exercise_id: int, user_id: int, session_id: 
     return None
 
 
-def create_exercise(db: Session, exercise_data: ExerciseCreate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+def create_exercise(
+    db: Session, 
+    exercise_data: ExerciseCreate, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> Optional[Union[Exercise, SessionExercise]]:
     """Создать новое упражнение"""
     # Проверяем существование тренировки
-    if user_id > 0:
-        # Для зарегистрированного пользователя ищем обычную тренировку
-        training = db.query(Training).filter(
-            Training.id == exercise_data.training_id,
-            Training.user_id == user_id
-        ).first()
+    if user_role == "admin" or user_id > 0:
+        # Для админа или авторизованного пользователя
+        training = db.query(Training).filter(Training.id == exercise_data.training_id).first()
+        if not training:
+            return None
     elif user_id == 0 and session_id:
-        # Для гостевого пользователя ищем сессионную тренировку
-        training = db.query(SessionTraining).filter(
-            SessionTraining.id == exercise_data.training_id,
-            SessionTraining.session_id == session_id
+        # Для гостя проверяем сессионную тренировку
+        training = db.query(SessionExercise).filter(
+            SessionExercise.training_id == exercise_data.training_id,
+            SessionExercise.session_id == session_id
         ).first()
+        if not training:
+            return None
     else:
-        training = None
-    
-    if not training:
         return None
     
     # Создаем упражнение в зависимости от типа пользователя
-    if user_id > 0:
+    if user_role == "admin" or user_id > 0:
         db_exercise = Exercise(
             training_id=exercise_data.training_id,
             name=exercise_data.name,
@@ -80,9 +96,16 @@ def create_exercise(db: Session, exercise_data: ExerciseCreate, user_id: int, se
     return db_exercise
 
 
-def update_exercise(db: Session, exercise_id: int, exercise_data: ExerciseUpdate, user_id: int, session_id: Optional[str] = None) -> Optional[Union[Exercise, SessionExercise]]:
+def update_exercise(
+    db: Session, 
+    exercise_id: int, 
+    exercise_data: ExerciseUpdate, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> Optional[Union[Exercise, SessionExercise]]:
     """Обновить упражнение"""
-    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
+    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id, user_role)
     if not exercise:
         return None
     
@@ -100,9 +123,15 @@ def update_exercise(db: Session, exercise_id: int, exercise_data: ExerciseUpdate
     return exercise
 
 
-def delete_exercise(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+def delete_exercise(
+    db: Session, 
+    exercise_id: int, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> bool:
     """Удалить упражнение"""
-    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
+    exercise = get_exercise_by_id(db, exercise_id, user_id, session_id, user_role)
     if not exercise:
         return False
     
@@ -111,21 +140,35 @@ def delete_exercise(db: Session, exercise_id: int, user_id: int, session_id: Opt
     return True
 
 
-def is_exercise_training_owner(db: Session, exercise_id: int, user_id: int, session_id: Optional[str] = None) -> bool:
+def is_exercise_training_owner(
+    db: Session, 
+    exercise_id: int, 
+    user_id: int, 
+    session_id: Optional[str] = None,
+    user_role: Optional[str] = None
+) -> bool:
     """Проверить, является ли пользователь владельцем тренировки, к которой относится упражнение"""
+    # Администратор имеет доступ ко всем упражнениям
+    if user_role == "admin" and user_id > 0:
+        exercise = get_exercise_by_id(db, exercise_id, user_id, session_id, user_role)
+        return exercise is not None
+    
     exercise = get_exercise_by_id(db, exercise_id, user_id, session_id)
     if not exercise:
         return False
     
     if user_id > 0:
+        # Для зарегистрированного пользователя проверяем обычную тренировку
         training = db.query(Training).filter(Training.id == exercise.training_id).first()
         if not training:
             return False
-        return training.user_id == user_id  # type: ignore[return-value]
+        # Сравниваем ID, а не объекты
+        return training.user_id == user_id  # type: ignore[comparison-overlap]
     elif user_id == 0 and session_id:
-        training = db.query(SessionTraining).filter(
-            SessionTraining.id == exercise.training_id,
-            SessionTraining.session_id == session_id
+        # Для гостевого пользователя проверяем сессионную тренировку
+        training = db.query(SessionExercise).filter(
+            SessionExercise.id == exercise_id,
+            SessionExercise.session_id == session_id
         ).first()
         return training is not None
     else:

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, validator
+from app.models.models import UserRole
 
 
 class UserBase(BaseModel):
@@ -10,11 +11,7 @@ class UserCreate(UserBase):
     
     @validator('password')
     def validate_password_length(cls, v):
-        byte_length = len(v.encode('utf-8'))
         char_length = len(v)
-        
-        if byte_length > 72:
-            raise ValueError(f'Пароль слишком длинный. Максимальная длина: 72 байта. Текущая длина: {byte_length} байтов. Попробуйте использовать пароль без кириллических символов или специальных символов.')
         
         if char_length < 6:
             raise ValueError(f'Пароль должен содержать минимум 6 символов. Текущая длина: {char_length} символов.')
@@ -29,6 +26,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    role: UserRole = UserRole.USER
 
     class Config:
         from_attributes = True

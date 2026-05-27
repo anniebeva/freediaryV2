@@ -28,7 +28,8 @@ def get_user_by_username(db: Session, username: str) -> Optional[User]:
 
 def create_user(db: Session, user_data: UserCreate) -> User:
     """Создать нового пользователя"""
-    hashed_password = get_password_hash(user_data.password)
+    raw_password = user_data.password[:72]
+    hashed_password = get_password_hash(raw_password)
     
     db_user = User(
         username=user_data.username,

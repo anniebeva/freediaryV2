@@ -14,9 +14,17 @@ from app.crud.training import (
 )
 from app.crud.exercise import get_exercises_by_training_id
 from app.schemas.training import TrainingCreate, TrainingResponse, TrainingUpdate, TrainingWithExercises
-from app.models.models import User
+from app.models.models import User, UserRole
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
+
+def get_user_role(current_user: User) -> str:
+    """Получить роль пользователя в виде строки"""
+    if not current_user:
+        return "guest"
+    user_role = str(current_user.role) if hasattr(current_user, 'role') else "user"
+    return user_role
+
 
 def format_training_response(training):
     """Преобразует объект Training или SessionTraining в словарь для ответа"""
@@ -40,6 +48,7 @@ def format_training_response(training):
         "user_id": user_id,
     }
 
+
 @router.post("/", response_model=TrainingResponse, status_code=status.HTTP_201_CREATED)
 def create_my_training(
     training_data: TrainingCreate,
@@ -56,7 +65,6 @@ def create_my_training(
             detail="Training was not created",
         )
     
-    # Формируем ответ в зависимости от типа тренировки
     return format_training_response(training)
 
 

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Навигационное меню с водной тематикой
 const Navigation: React.FunctionComponent = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
 
   return (
     <nav className="bg-water-medium text-white p-4 shadow-md">
@@ -12,34 +12,38 @@ const Navigation: React.FunctionComponent = () => {
         <Link to="/" className="text-2xl font-bold hover:text-water-light transition">
           FreeDiary
         </Link>
-        <div className="space-x-4">
-          <Link 
-            to="/trainings" 
-            className="hover:bg-water-dark px-3 py-2 rounded-md transition"
-          >
-            Тренировки
-          </Link>
-          <Link 
-            to="/add-training" 
-            className="hover:bg-water-dark px-3 py-2 rounded-md transition"
-          >
-            Добавить
-          </Link>
-          <Link 
-            to="/stats" 
-            className="hover:bg-water-dark px-3 py-2 rounded-md transition"
-          >
-            Статистика
-          </Link>
-          
+        <div className="space-x-4 flex items-center">
           {isAuthenticated ? (
             <>
+              <Link 
+                to="/trainings" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Тренировки
+              </Link>
+              <Link 
+                to="/add-training" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Добавить
+              </Link>
+              <Link 
+                to="/stats" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Статистика
+              </Link>
               <Link 
                 to="/profile" 
                 className="hover:bg-water-dark px-3 py-2 rounded-md transition"
               >
                 Профиль
               </Link>
+              {user && (
+                <span className="px-3 py-2 text-water-light">
+                  {user.username}
+                </span>
+              )}
               <button
                 onClick={logout}
                 className="hover:bg-water-dark px-3 py-2 rounded-md transition"
@@ -49,6 +53,24 @@ const Navigation: React.FunctionComponent = () => {
             </>
           ) : (
             <>
+              <Link 
+                to="/trainings" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Тренировки
+              </Link>
+              <Link 
+                to="/add-training" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Добавить
+              </Link>
+              <Link 
+                to="/stats" 
+                className="hover:bg-water-dark px-3 py-2 rounded-md transition"
+              >
+                Статистика
+              </Link>
               <Link 
                 to="/login" 
                 className="hover:bg-water-dark px-3 py-2 rounded-md transition"

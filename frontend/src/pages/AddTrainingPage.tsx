@@ -135,12 +135,6 @@ const AddTrainingPage: React.FunctionComponent = () => {
       setLoading(false);
     }
   };
-  console.log('📤 ОТПРАВЛЯЕМЫЕ ДАННЫЕ для Depth:', {
-  type: mapTrainingTypeToAPI(trainingType),
-  date: date,
-  difficulty: difficulty,
-  depthTraining: depthTraining
-});
 
   return (
     <div className="container mx-auto p-6">

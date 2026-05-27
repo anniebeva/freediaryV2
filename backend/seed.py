@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal, engine, create_tables
-from app.models.models import User, Training, Exercise, SessionTracking, SessionTraining, SessionExercise, TrainingType
+from app.models.models import User, Training, Exercise, SessionTracking, SessionTraining, SessionExercise, TrainingType, UserRole
 from app.core.security import get_password_hash
 
 
@@ -26,15 +26,6 @@ def create_test_data() -> None:
         create_tables()
         print("Таблицы созданы успешно!")
         
-        # Очищаем существующие данные (опционально)
-        # db.query(Exercise).delete()
-        # db.query(Training).delete()
-        # db.query(User).delete()
-        # db.query(SessionExercise).delete()
-        # db.query(SessionTraining).delete()
-        # db.query(SessionTracking).delete()
-        # db.commit()
-        
         # Создаем тестовых пользователей
         print("Создание тестовых пользователей...")
         
@@ -42,7 +33,8 @@ def create_test_data() -> None:
         user1 = User(
             username="testuser1",
             email="user1@example.com",
-            password=get_password_hash("password123")
+            password=get_password_hash("password123"),
+            role="user"
         )
         db.add(user1)
         
@@ -50,15 +42,26 @@ def create_test_data() -> None:
         user2 = User(
             username="testuser2",
             email="user2@example.com",
-            password=get_password_hash("password456")
+            password=get_password_hash("password456"),
+            role="user"
         )
         db.add(user2)
+        
+        # Администратор
+        admin_user = User(
+            username="admin",
+            email="admin@example.com",
+            password=get_password_hash("admin123"),
+            role="admin"
+        )
+        db.add(admin_user)
         
         db.commit()
         db.refresh(user1)
         db.refresh(user2)
+        db.refresh(admin_user)
         
-        print(f"Созданы пользователи: {user1.username} (ID: {user1.id}), {user2.username} (ID: {user2.id})")
+        print(f"Созданы пользователи: {user1.username} (ID: {user1.id}, роль: {user1.role}), {user2.username} (ID: {user2.id}, роль: {user2.role}), {admin_user.username} (ID: {admin_user.id}, роль: {admin_user.role})")
         
         # Создаем тренировки для пользователя 1
         print("Создание тренировок для пользователя 1...")
@@ -66,7 +69,7 @@ def create_test_data() -> None:
         # Тренировка 1: Бассейн
         training1 = Training(
             user_id=user1.id,
-            type=TrainingType.Pool,
+            type="Pool",
             date=date.today() - timedelta(days=2),
             difficulty=3,
             notes="Хорошая тренировка в бассейне",
@@ -77,7 +80,7 @@ def create_test_data() -> None:
         # Тренировка 2: Глубина
         training2 = Training(
             user_id=user1.id,
-            type=TrainingType.Depth,
+            type="Depth",
             date=date.today() - timedelta(days=1),
             difficulty=4,
             notes="Погружение на глубину",
@@ -89,7 +92,7 @@ def create_test_data() -> None:
         db.refresh(training1)
         db.refresh(training2)
         
-        print(f"Созданы тренировки: ID {training1.id} ({training1.type.value}), ID {training2.id} ({training2.type.value})")
+        print(f"Созданы тренировки: ID {training1.id} ({training1.type}), ID {training2.id} ({training2.type})")
         
         # Создаем упражнения для тренировок
         print("Создание упражнений...")
@@ -142,7 +145,7 @@ def create_test_data() -> None:
         # Создаем сессионные тренировки
         session_training1 = SessionTraining(
             session_id=session.session_id,
-            type=TrainingType.Gym,
+            type="Gym",
             date=date.today(),
             difficulty=2,
             notes="Тренировка в зале",
@@ -173,18 +176,18 @@ def create_test_data() -> None:
         db.commit()
         
         print(f"Создана сессия: {session.session_id}")
-        print(f"Создана сессионная тренировка: ID {session_training1.id}")
+        print(f"Создана сессионная тренировка: ID {session_training1.id} ({session_training1.type})")
         print(f"Создано 2 сессионных упражнения")
         
         print("\n" + "="*50)
         print("Seed данные успешно созданы!")
         print("="*50)
         print("\nСозданы следующие данные:")
-        print(f"1. Пользователи: {user1.username}, {user2.username}")
-        print(f"2. Тренировки: {training1.type.value}, {training2.type.value}")
+        print(f"1. Пользователи: {user1.username} (user), {user2.username} (user), {admin_user.username} (admin)")
+        print(f"2. Тренировки: {training1.type}, {training2.type}")
         print(f"3. Упражнения: 4 шт.")
         print(f"4. Сессия для гостя: {session.session_id}")
-        print(f"5. Сессионная тренировка: {session_training1.type.value}")
+        print(f"5. Сессионная тренировка: {session_training1.type}")
         print(f"6. Сессионные упражнения: 2 шт.")
         print("\nДля проверки можно запустить сервер и проверить данные через API.")
         

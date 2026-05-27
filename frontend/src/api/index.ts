@@ -44,23 +44,50 @@ async function fetchAPI<T>(
     }
     
     if (!response.ok) {
-      // Пытаемся получить детальную информацию об ошибке
-      let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorMessage = '';
       
+      // Обработка ошибок по статусу
+      switch (response.status) {
+        case 400:
+          errorMessage = 'Неверные данные';
+          break;
+        case 401:
+          // Очищаем токен при 401
+          localStorage.removeItem('token');
+          localStorage.removeItem('isAuthenticated');
+          localStorage.removeItem('user');
+          errorMessage = 'Необходима авторизация';
+          break;
+        case 403:
+          errorMessage = 'Нет прав для этого действия';
+          break;
+        case 404:
+          errorMessage = 'Данные не найдены';
+          break;
+        case 500:
+          errorMessage = 'Ошибка сервера, попробуйте позже';
+          break;
+        default:
+          errorMessage = `HTTP error! status: ${response.status}`;
+      }
+      
+      // Пытаемся получить детальную информацию об ошибке из ответа
       try {
         const errorData = await response.json();
         if (errorData.detail) {
           if (Array.isArray(errorData.detail)) {
-            errorMessage = `Validation errors: ${errorData.detail.map((err: any) => err.msg || err.message).join(', ')}`;
+            errorMessage = `Ошибки валидации: ${errorData.detail.map((err: any) => err.msg || err.message).join(', ')}`;
           } else {
             errorMessage = errorData.detail;
           }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
         }
       } catch (parseError) {
         // Если не удалось распарсить JSON, используем стандартное сообщение
       }
       
-      throw new Error(errorMessage);
+      throw new Error(`${errorMessage} (${response.status})`);
     }
     
     return await response.json();
@@ -123,20 +150,16 @@ export const exerciseAPI = {
 
 // Аутентификация
 export const authAPI = {
-  // Регистрация
   register: (data: any) => fetchAPI<any>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
-  // Вход
   login: (data: any) => fetchAPI<any>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
-  // Выход
   logout: () => fetchAPI<void>('/auth/logout', {
     method: 'POST',
   }),
+  getMe: () => fetchAPI<any>('/auth/me'),  // 👈 добавить эту строку
 };

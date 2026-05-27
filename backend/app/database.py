@@ -1,15 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 
-# Путь к файлу базы данных SQLite
-SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "freediary.db")
+from .core.config import settings
 
-# Создание движка SQLAlchemy для SQLite
+# Создание движка SQLAlchemy
 engine = create_engine(
-    f"sqlite:///{SQLITE_DB_PATH}",
-    connect_args={"check_same_thread": False}  # Для SQLite в FastAPI
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
 )
 
 # Создание фабрики сессий

@@ -7,6 +7,7 @@ from app.routes.auth import router as auth_router
 from app.routes.exercises import router as exercises_router
 from app.routes.trainings import router as trainings_router
 from app.crud.session_cleanup import cleanup_expired_sessions
+from app.core.config import settings
 
 app = FastAPI()
 
@@ -21,16 +22,10 @@ def on_startup():
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",      # React фронтенд
-        "http://127.0.0.1:3000",      # Альтернативный адрес фронта
-        "http://localhost:8000",      # Сваггер на том же домене
-        "http://127.0.0.1:8000",      # Сваггер
-        "*"                            # Временно разрешить все (только для тестов)
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "x-session-id"],               # Разрешить все заголовки
+    allow_headers=["Content-Type", "Authorization", "x-session-id"],
 )
 
 app.include_router(auth_router)
@@ -91,6 +86,36 @@ def get_database_info(db: Session = Depends(get_db)):
             "session_exercises": session_exercise_count
         }
     }
+
+# Настройка Swagger для Bearer авторизации
+from fastapi.openapi.utils import get_openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title="Freediary API",
+        version="1.0.0",
+        routes=app.routes,
+    )
+    
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            method.setdefault("security", []).append({"BearerAuth": []})
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn
