@@ -53,3 +53,45 @@ def delete_user(db: Session, user_id: int) -> bool:
     db.delete(user)
     db.commit()
     return True
+
+
+def get_user_by_telegram_id(db: Session, telegram_id: str) -> Optional[User]:
+    """Получить пользователя по telegram_id"""
+    return db.query(User).filter(User.telegram_id == telegram_id).first()
+
+
+def update_user_telegram_id(db: Session, user_id: int, telegram_id: str) -> Optional[User]:
+    """Обновить telegram_id пользователя"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+    
+    user.telegram_id = telegram_id  # type: ignore
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def unlink_user_telegram(db: Session, user_id: int) -> Optional[User]:
+    """Отвязать Telegram от пользователя"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+    
+    user.telegram_id = None  # type: ignore
+    user.telegram_notifications_enabled = False  # type: ignore
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_telegram_notifications(db: Session, user_id: int, enabled: bool) -> Optional[User]:
+    """Обновить настройки Telegram уведомлений"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+    
+    user.telegram_notifications_enabled = enabled  # type: ignore
+    db.commit()
+    db.refresh(user)
+    return user

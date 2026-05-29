@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     CORS_ORIGINS_STR: str = "http://localhost:3000"  # 👈 временное поле
     
+    # Telegram Bot Configuration
+    TELEGRAM_BOT_TOKEN: str | None = None
+    TELEGRAM_BOT_NAME: str = "FreeDiaryBot"
+    
     @property
     def CORS_ORIGINS(self) -> List[str]:
         """Преобразует строку с CORS_ORIGINS в список"""

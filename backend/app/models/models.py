@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, JSON, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -26,6 +26,8 @@ class User(Base):
     email = Column(String(100), unique=True, nullable=False, index=True)
     password = Column(String(200), nullable=False)
     role = Column(String(10), default=UserRole.USER.value, nullable=False)
+    telegram_id = Column(String(50), unique=True, nullable=True, index=True)
+    telegram_notifications_enabled = Column(Boolean, default=False, nullable=False)
     
     trainings = relationship("Training", back_populates="user", cascade="all, delete-orphan")
 

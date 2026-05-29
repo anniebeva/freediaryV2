@@ -44,6 +44,7 @@ yarn.lock
 # Temporary files
 .tmp/
 .temp/
+*runbot.py
 
 # Miscellaneous
 .cache/

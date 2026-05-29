@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.models.models import User
@@ -7,6 +7,7 @@ from app.core.security import create_access_token, verify_password
 from app.crud.user import create_user, get_user_by_email, get_user_by_username
 from app.database import get_db
 from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
+from app.bot.notifications import notify_login
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -42,6 +43,7 @@ def register(
 @router.post("/login", response_model=Token)
 def login(
     credentials: UserLogin,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     user = get_user_by_email(db, credentials.email)
@@ -54,6 +56,13 @@ def login(
         )
     
     access_token = create_access_token(subject=str(user.id))
+    
+    # Send Telegram notification in background if enabled
+    telegram_id = getattr(user, 'telegram_id', None)
+    notifications_enabled = getattr(user, 'telegram_notifications_enabled', False)
+    
+    if telegram_id and notifications_enabled:
+        background_tasks.add_task(notify_login, user.id)  # type: ignore
     
     return Token(access_token=access_token)
 

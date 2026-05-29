@@ -1,28 +1,47 @@
 from fastapi import FastAPI, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db, create_tables
 from app.routes.auth import router as auth_router
 from app.routes.exercises import router as exercises_router
 from app.routes.trainings import router as trainings_router
+from app.routes.telegram import router as telegram_router
 from app.crud.session_cleanup import cleanup_expired_sessions
 from app.core.config import settings
-from app.core.exceptions import validation_exception_handler
+from app.bot.handler import TelegramBotHandler
 
 app = FastAPI()
 
-# Register global exception handler for validation errors
+# Регистрируем глобальный обработчик для ошибок валидации
+def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Missing or invalid fields", "errors": exc.errors()}
+    )
+
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
-# Создание таблиц при запуске приложения
+# Создаём экземпляр бота
+bot_handler = TelegramBotHandler()
+
+# Создание таблиц и запуск бота при запуске приложения
 @app.on_event("startup")
-def on_startup():
-    """Создание таблиц при запуске приложения"""
+async def on_startup():
+    """Создание таблиц и запуск Telegram бота"""
     print("Создание таблиц базы данных...")
     create_tables()
     print("Таблицы базы данных созданы успешно!")
+    
+    # Запускаем Telegram бота
+    await bot_handler.start_bot()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Остановка Telegram бота"""
+    await bot_handler.stop_bot()
 
 # Настройка CORS
 app.add_middleware(
@@ -36,6 +55,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(trainings_router)
 app.include_router(exercises_router)
+app.include_router(telegram_router)
 
 
 @app.get("/")
@@ -121,7 +141,6 @@ def custom_openapi():
     return app.openapi_schema
 
 app.openapi = custom_openapi
-
 
 
 if __name__ == "__main__":

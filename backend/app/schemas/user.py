@@ -27,6 +27,8 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     role: UserRole = UserRole.USER
+    telegram_id: str | None = None
+    telegram_notifications_enabled: bool = False
 
     class Config:
         from_attributes = True

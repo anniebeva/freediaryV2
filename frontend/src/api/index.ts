@@ -163,3 +163,34 @@ export const authAPI = {
   }),
   getMe: () => fetchAPI<any>('/auth/me'),  // 👈 добавить эту строку
 };
+
+// Telegram API
+export const telegramAPI = {
+  // Получить статус Telegram
+  getStatus: () => fetchAPI<any>('/users/me/telegram/status'),
+  
+  // Сгенерировать ссылку для привязки
+  generateLink: () => fetchAPI<any>('/users/me/telegram/link', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
+  
+  // Отвязать Telegram
+  unlink: () => fetchAPI<any>('/users/me/telegram/unlink', {
+    method: 'DELETE',
+  }),
+  
+  // Отправить тестовое уведомление
+  sendTestNotification: () => fetchAPI<any>('/users/me/telegram/test', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
+  
+  // Обновить настройки уведомлений
+  updateSettings: (enabled: boolean) => fetchAPI<any>('/users/me/telegram/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      telegram_notifications_enabled: enabled
+    }),
+  }),
+};
