@@ -7,7 +7,6 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.68",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "react": "^18.2.0",
@@ -23,7 +22,18 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:e2e:report": "playwright test --reporter=html",
+    "playwright:install": "npx playwright install",
+    "playwright:install-chromium": "npx playwright install chromium",
+    "playwright:install-firefox": "npx playwright install firefox",
+    "playwright:install-webkit": "npx playwright install webkit"
   },
   "eslintConfig": {
     "extends": [
@@ -44,6 +54,9 @@
     ]
   },
   "devDependencies": {
-    "@types/uuid": "^9.0.7"
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.1",
+    "@types/uuid": "^9.0.7",
+    "playwright": "^1.60.0"
   }
 }

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+import asyncio
 
 from app.database import get_db, create_tables
 from app.routes.auth import router as auth_router
@@ -12,6 +13,10 @@ from app.routes.telegram import router as telegram_router
 from app.crud.session_cleanup import cleanup_expired_sessions
 from app.core.config import settings
 from app.bot.handler import TelegramBotHandler
+
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 app = FastAPI()
 
@@ -30,13 +35,19 @@ bot_handler = TelegramBotHandler()
 # Создание таблиц и запуск бота при запуске приложения
 @app.on_event("startup")
 async def on_startup():
-    """Создание таблиц и запуск Telegram бота"""
-    print("Создание таблиц базы данных...")
+    print("Creating database tables...")
     create_tables()
-    print("Таблицы базы данных созданы успешно!")
+    print("Database tables created successfully!")
     
-    # Запускаем Telegram бота
-    await bot_handler.start_bot()
+    print("Starting Telegram bot...")
+    try:
+        # Даём боту 5 секунд на подключение
+        await asyncio.wait_for(bot_handler.start_bot(), timeout=5)
+        print("Telegram bot started!")
+    except asyncio.TimeoutError:
+        print("Telegram bot startup timeout - continuing without bot")
+    except Exception as e:
+        print(f"Telegram bot not available: {e}")
 
 @app.on_event("shutdown")
 async def on_shutdown():

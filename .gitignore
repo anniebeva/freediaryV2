@@ -232,3 +232,24 @@ cython_debug/
 /.pnp
 .pnp.js
 backend/freediary.db
+
+# Playwright test results
+/test-results/
+/playwright-report/
+/playwright/.cache/
+*.trace.zip
+
+# Playwright browsers
+/ms-playwright/
+
+# Test environment files
+.env.test
+.env.test.local
+
+# Test database
+test.db
+*.db-journal
+
+# Test coverage
+/coverage/
+.nyc_output
